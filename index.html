@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="glApp">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guest List 07</title>
+    <script src="lib/angular/angular.min.js"></script>
+    <script src="js/ModelService.js"></script>
+    <style>
+        body {
+            padding-top: 20px;
+        }
+
+        .odd {
+            color: rgb(150, 127, 255);
+            background-color: azure;
+        }
+
+        .even {
+            color: rgb(252, 211, 31)
+        }
+
+        .bold {
+            font-weight: bold;
+        }
+
+        .focus {
+            background-color: rgb(7, 230, 107);
+        }
+    </style>
+</head>
+
+<body>
+    <div ng-controller="glCtrl">
+        <div style="color:rgb(95, 12, 12)">
+            <H1>邀请名单</H1>
+        </div>
+        <form name="glform">
+            <div style="color:rgb(255, 119, 0)">
+                姓名
+                <input type="text" name="gname" placeholder="输入姓名" ng-model="guestInfo.name" required>
+                <span ng-show="glform.gname.$error.required">
+                    姓名不能为空！
+                </span>
+                电话
+                <input type="text" name="gphone" placeholder="输入电话" ng-model="guestInfo.phone" required>
+                <span ng-show="glform.gphone.$error.required">
+                    电话不能为空！
+                </span>
+                性别
+                <input type="radio" ng-model="guestInfo.gender" value="男" ng-checked="true">男
+                <input type="radio" ng-model="guestInfo.gender" value="女">女
+                <input type="radio" ng-model="guestInfo.gender" value="未知">未知
+                关系
+                <select ng-model="glApp" name="grela" ng-init="glApp = relaData[0]" ng-options="txt for txt in relaData"
+                    ng-change="relaChoice(glApp)">
+                </select>
+                <span ng-show="glform.grela.$pristine">请选择关系
+                </span>
+                <button type="button" ng-click="invite(guestInfo)" ng-disabled="glform.$invalid">邀请</button>
+            </div>
+            <div style="color: rgb(239, 111, 32)">
+                <a href="#!/all">全部：{{guestsCount.guestCount}}</a>
+                <a href="#!/invite">邀请中：{{guestsCount.inviteCount}}</a>
+                <a href="#!/accept">已接受：{{guestsCount.acceptCount}}</a>
+                <a href="#!/refuse">已拒绝：{{guestsCount.refuseCount}}</a>
+            </div>
+            <div>
+                <table border="1" width="80%">
+                    <tr>
+                        <input id="txtkey" type="text" ng-model="key" placeholder="请输入姓名关键字" />
+                    </tr>
+                    <thead style="color: blue;">
+                        <tr>
+                            <th>编号</th>
+                            <th ng-click="title='name';desc=!desc">姓名^</th>
+                            <th ng-click="title='phone';desc=!desc">电话^</th>
+                            <th ng-click="title='gender';desc=!desc">性别^</th>
+                            <th ng-click="title='relationship';desc=!desc">关系^</th>
+                            <th ng-click="title='state';desc=!desc">状态^</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody style="color: rgb(255, 111, 0);">
+                        <tr ng-repeat="guest in guests|orderBy:title:desc|filter:{name:key}" ng-class-odd="'odd'"
+                            ng-class-odd="'even'" ng-click='click($index)' ng-class='{focus:$index==focus}'>
+                            <td>{{$index+1}}</td>
+                            <td>{{guest.name}}</td>
+                            <td>{{guest.phone}}</td>
+                            <td>{{guest.gender}}</td>
+                            <td>{{guest.relationship}}</td>
+                            <td>{{guest.state}}</td>
+                            <td>
+                                <span ng-if="guest.state=='邀请中'">
+                                    <button type="button" ng-click="guest.accept()">接受邀请</button>
+                                    <button type="button" ng-click="guest.refuse()">拒绝邀请</button>
+                                </span>
+                                <button type="button" ng-click="remove(guest)">删除</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </form>
+    </div>
+    <Script>
+        var glApp = angular.module('glApp', ['glModel']);
+
+        var guestsCount={
+            guestCount:0,
+            inviteCount:0,
+            acceptCount:0,
+            refuseCount:0
+        }
+        glApp.value("guestsCount", guestsCount);
+
+        glApp.controller('glCtrl', function ($scope, glService, $location, guestsCount) {
+            var state = Guest.ALL;
+            $scope.guests = glService.getList(state);
+            console.log(glService.getList(state));
+
+            $scope.guestsCount=guestsCount;
+
+            var guestInfo = $scope.guestInfo = {
+                name: '',
+                phone: '',
+                gender: '男',
+                relationship: '朋友'
+            };
+            $scope.relaData = ['朋友', '同学', '家人', '亲戚', '同事', '其它'];
+            $scope.relaChoice = function (rela) {
+                $scope.guestInfo.relationship = rela;
+            }
+            $scope.invite = function (guestInfo) {
+                var msg = glService.add(guestInfo.name, guestInfo.phone, guestInfo.gender, guestInfo
+                    .relationship);
+                switch (msg.code) {
+                    case 0:
+                        $scope.guests = glService.getList(state);
+                        guestInfo.name = '', guestInfo.phone = '';
+                        guestInfo.gender = '男', guestInfo.relationship = '朋友';
+                        guestsCount.guestCount++;
+                        guestsCount.inviteCount++;
+                        break;
+                    case 1:
+                        alert("请输入姓名和电话！");
+                        break;
+                    case 2:
+                        alert("电话有重复！");
+                        break;
+                }
+            };
+            $scope.remove = function (guest) {
+                guestsCount.guestCount--;
+                if(guest.state==Guest.INVITE)
+                    guestsCount.inviteCount--;
+                else if(guest.state==Guest.ACCEPT)
+                    guestsCount.acceptCount--;
+                else
+                    guestsCount.refuseCount--;
+                glService.remove(guest);
+                $scope.guests = glService.getList(state);
+            };
+            $scope.location = $location;
+            $scope.$watch('location.path()', function (stateRouter) {
+                switch (stateRouter) {
+                    case '/all':
+                        state = Guest.ALL;
+                        break;
+                    case '/invite':
+                        state = Guest.INVITE;
+                        break;
+                    case '/accept':
+                        state = Guest.ACCEPT;
+                        break;
+                    case '/refuse':
+                        state = Guest.REFUSE;
+                        break;
+                }
+                $scope.guests = glService.getList(state);
+            });
+            $scope.bold = "bold";
+            $scope.click = function (i) {
+                $scope.focus = i;
+            };
+            $scope.title = 'name';
+            $scope.desc = 0;
+            $scope.key = '';         
+            
+        });
+    </Script>
+</body>
+
+</html>
